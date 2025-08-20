@@ -1,6 +1,8 @@
 import {
   Controller,
   Get,
+  Post,
+  Redirect,
   Req,
   Res,
   UseGuards,
@@ -10,29 +12,25 @@ import type { Request, Response } from 'express';
 
 @Controller('auth')
 export class AuthController {
-  @Get('login')
-  @UseGuards(AuthGuard('saml'))
-  async login() {
-    // Redirect to Okta IdP
-  }
 
-  @Get('callback')
+  // Step 1: Initiate SAML login
+  @Post('login')
   @UseGuards(AuthGuard('saml'))
-  async callback(@Req() req: Request, @Res() res: Response) {
-    if (!req.user) {
-      return res.status(401).json({ message: 'Authentication failed' });
+  async login(@Req() req: Request, @Res() res: Response) {
+    if (req.isAuthenticated()) {
+      res.redirect(process.env.SP_AUDIENCE_URL || '');
+    } else {
+      res.status(401).json({ message: "Unauthorized Access !"});
     }
-
-    return res.json({
-      message: 'Login successful',
-      user: req.user, // 👈 now TypeScript won’t complain
-    });
   }
 
-  @Get('logout')
-  async logout(@Req() req: Request, @Res() res: Response) {
-    req.logout(() => {
-      res.json({ message: 'Logged out' });
-    });
+  @Post('callback')
+  @UseGuards(AuthGuard('saml'))
+  @Redirect(process.env.SP_AUDIENCE_URL, 302)
+  async callback() {
+    // The user is authenticated by the SAML strategy
+    // No additional logic needed here, just redirecting
   }
 }
+
+
